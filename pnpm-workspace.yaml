@@ -1,0 +1,7 @@
+packages:
+  - 'Backend'
+  - 'Frontend'
+allowBuilds:
+  '@swc/core': true
+  bcrypt: true
+  esbuild: true

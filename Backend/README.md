@@ -26,7 +26,7 @@ A modern real-time chat application built with MERN stack (MongoDB, Express.js, 
 ### Prerequisites
 
 - Node.js >= 20.0.0
-- npm >= 10.0.0
+- pnpm >= 9.0.0
 - MongoDB instance
 - Cloudinary account
 
@@ -56,13 +56,13 @@ cd realtime_MERN_chatty-backend
 2. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 3. Start the development server:
 
 ```bash
-npm run start:dev
+pnpm run start:dev
 ```
 
 The server will start on http://localhost:3000

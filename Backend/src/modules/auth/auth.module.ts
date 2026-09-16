@@ -17,7 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         secret: configService.get('JWT_SECRET'), // Access JWT_SECRET from environment variables
         signOptions: {
           // DEF is 7 days
-          expiresIn: configService.get<string>('JWT_EXPIRE'),
+          expiresIn: (configService.get<string>('JWT_EXPIRE') || '7d') as any,
         },
       }),
       inject: [ConfigService], // Inject ConfigService into the useFactory function

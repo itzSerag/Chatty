@@ -46,7 +46,6 @@ export class MessageService {
 
     const receiverSocketId = this.webSocketsProvider.getReceiverSocketId(String(receiverId));
 
-    log("re", receiverId)
     if (receiverSocketId) {
       // for the receiver and event called newMessage
       this.webSocketsProvider.server.to(String(receiverSocketId)).emit("newMessage", newMessage)

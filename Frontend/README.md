@@ -1,7 +1,5 @@
 # Chatty - Real-time MERN Chat Application
 
-![Chatty Logo](https://raw.githubusercontent.com/your-username/realtime_MERN_chatapp/main/frontend/public/logo.png)
-
 Chatty is a modern real-time chat application built with the MERN stack (MongoDB, Express.js, React, Node.js) and Socket.IO for real-time communication. It features a beautiful UI built with Tailwind CSS and DaisyUI.
 
 ## ✨ Features
@@ -51,8 +49,8 @@ cd realtime_MERN_chatapp
 
 2. Install frontend dependencies:
 ```bash
-cd frontend
-npm install
+cd Frontend
+pnpm install
 ```
 
 3. Create a `.env` file in the frontend directory:
@@ -62,7 +60,7 @@ VITE_API_URL=your_backend_url
 
 4. Start the development server:
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ## 🔧 Environment Variables

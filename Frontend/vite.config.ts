@@ -10,7 +10,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/v1': {
-        target: 'https://chatty-serageldien-project.vercel.app', // Use the actual deployed backend URL
+        target: 'https://chatty-serageldien-project.vercel.app', 
+        // Use the actual deployed backend URL
         changeOrigin: true,
         secure: false,
       },

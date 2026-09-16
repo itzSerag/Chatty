@@ -19,7 +19,6 @@ export class WebSocketsGateway implements OnGatewayConnection, OnGatewayDisconne
             return;
         }
         this.onlineUsers[userId] = client.id;
-        console.log(`User ${userId} connected. Socket ID: ${client.id}`);
         this.server.emit("getOnlineUsers", Object.keys(this.onlineUsers));
     }
 
