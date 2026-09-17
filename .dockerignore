@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+**/node_modules
+.pnpm-store
+**/.pnpm-store
+
+# Build output
+dist
+**/dist
+**/*.tsbuildinfo
+.git
+
+# Secrets & logs
+.env
+.env.*
+!.env.example
+*.log
+.pnpm-debug.log*
+
+# Misc
+coverage
+.git
+.gitignore
+.prettierrc
+.eslintrc*
+README.md
