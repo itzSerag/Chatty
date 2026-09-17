@@ -1,21 +1,14 @@
 import { Module } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { UserController } from "./user.controller";
-import { DatabaseModule } from "../../core/database";
-import { UserRepo } from "./user.repo";
-import { UserDocument, UserSchema } from "./model/user.schema";
 import { CloudinaryModule } from "../../core/cloudinary";
+import { GuardsModule } from "../../core/guards/guards.module";
 
 @Module({
-    imports: [
-        CloudinaryModule,
-        DatabaseModule,
-        DatabaseModule.forFeature([
-            { name: UserDocument.name, schema: UserSchema },
-        ]),
-    ],
+    // GuardsModule provides + exports JwtAuthGuard (used on UserController).
+    imports: [CloudinaryModule, GuardsModule],
     controllers: [UserController],
-    providers: [UserService, UserRepo],
-    exports: [UserService]
+    providers: [UserService],
+    exports: [UserService],
 })
 export class UserModule { }

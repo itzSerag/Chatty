@@ -2,7 +2,7 @@ import { Controller, Post, Body, UseGuards, Res, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { CurrentUser } from './decorators/user.decorator';
-import { UserDocument } from '../user/model/user.schema';
+import { User } from '@prisma/client';
 import { Response } from 'express';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { LocalGuard } from './guards/local.guard';
@@ -11,10 +11,11 @@ import { LocalGuard } from './guards/local.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
-
   @Post('signup')
-  async signup(@Body() createUserDto: CreateUserDto,
-    @Res({ passthrough: true }) response: Response) {
+  async signup(
+    @Body() createUserDto: CreateUserDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const user = await this.authService.signup(createUserDto, response);
     return user;
   }
@@ -22,32 +23,30 @@ export class AuthController {
   @UseGuards(LocalGuard)
   @Post('login')
   login(
-    @CurrentUser() user: UserDocument,
-    @Res({ passthrough: true }) response: Response) {
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     this.authService.login(user, response);
 
-    // we already that the user valid we want to add some fancy jwt only
-    response.send({
+    return response.send({
       ...user,
-      password: ""
+      password: '',
     });
-
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) response: Response) {
-
     response.cookie('Authentication', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      expires: new Date(0), // Set the cookie to expire immediately
+      expires: new Date(0),
     });
+    return response.send({ message: 'Logged out successfully' });
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('user')
-  getUser(@CurrentUser() user: UserDocument) {
-    return user
+  getUser(@CurrentUser() user: User) {
+    return user;
   }
-
 }

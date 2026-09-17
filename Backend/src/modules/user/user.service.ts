@@ -1,87 +1,160 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserRepo } from "./user.repo";
-import * as bcrypt from 'bcrypt'
-import { log } from "console";
-import { UserDocument } from "./model/user.schema";
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from "../../core/database/prisma.service";
 import { CloudinaryService } from "../../core/cloudinary/cloudinary.service";
 
 @Injectable()
 export class UserService {
-    
     constructor(
-        private readonly userRepo: UserRepo,
-        private readonly cloudinaryService: CloudinaryService) {
+        private readonly prisma: PrismaService,
+        private readonly cloudinaryService: CloudinaryService,
+    ) { }
 
+    private formatUser<T extends { id: string }>(user: T | null): (T & { _id: string; imgUrl?: string | null }) | null {
+        if (!user) return null;
+        return {
+            ...user,
+            _id: user.id,
+            imgUrl: (user as any).profileImg ?? (user as any).imgUrl ?? null,
+        };
     }
-
-
-   
 
     // VALIDATE
     async validateUser(email: string, password: string) {
-
-        const user = await this.findOne(email);
+        const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
-            throw new NotFoundException("Email or Password is not found")
+            throw new NotFoundException("Email or Password is not found");
         }
 
         const comparePasswords = await bcrypt.compare(password, user.password);
         if (!comparePasswords) {
-            throw new NotFoundException("Email or Password is not found")
+            throw new NotFoundException("Email or Password is not found");
         }
 
-        log(user)
-        return user;
+        return this.formatUser(user);
     }
 
-
-    // CRUDS
+    // CRUD
     async create(createUserDto: CreateUserDto) {
-        return await this.userRepo.create({
-            ...createUserDto,
-            password: await bcrypt.hash(createUserDto.password, 10)
+        const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+        const user = await this.prisma.user.create({
+            data: {
+                username: createUserDto.username,
+                email: createUserDto.email,
+                password: hashedPassword,
+                phoneNumber: createUserDto.phoneNumber,
+            },
         });
+        return this.formatUser(user);
     }
 
     async findAll() {
-        return this.userRepo.find({});
+        const users = await this.prisma.user.findMany({
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                phoneNumber: true,
+                role: true,
+                profileImg: true,
+                bio: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+        return users.map((u) => this.formatUser(u));
     }
 
-    async findOneById(_id: string) {
-        return this.userRepo.findOne({ _id })
+    async findOneById(id: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+        });
+        return this.formatUser(user);
     }
 
     async findOne(email: string) {
-        return this.userRepo.findOne({ email });
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+        });
+        return this.formatUser(user);
     }
 
-
-    async update(_id: string, updateUserDto: UpdateUserDto) {
-        return this.userRepo.findOneAndUpdate({ _id }, { $set: updateUserDto });
+    async update(id: string, updateUserDto: UpdateUserDto) {
+        const data: any = { ...updateUserDto };
+        if (data.password) {
+            data.password = await bcrypt.hash(data.password, 10);
+        }
+        const user = await this.prisma.user.update({
+            where: { id },
+            data,
+        });
+        return this.formatUser(user);
     }
 
-    async remove(_id: string) {
-        return this.userRepo.findOneAndDelete({ _id });
+    async remove(id: string) {
+        const user = await this.prisma.user.delete({
+            where: { id },
+        });
+        return this.formatUser(user);
     }
 
-    async findAllExcept(_id: string) {
-        return this.userRepo.findAllExcept({ _id })
+    async findAllExcept(id: string) {
+        const users = await this.prisma.user.findMany({
+            where: { id: { not: id } },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                phoneNumber: true,
+                role: true,
+                profileImg: true,
+                bio: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+        return users.map((u) => this.formatUser(u));
     }
 
-
-    // UPDATE
-    async updateProfileImg(user: UserDocument, base64Img: string) {
-
-        const secure_url = await this.cloudinaryService.uploadProfileImg(String(user._id), base64Img)
-        // Update the user's profile image URL in the database
-        const updatedUser = await this.userRepo.findOneAndUpdate(
-            { _id: user._id },
-            { imgUrl: secure_url },
-        );
-        return updatedUser;
+    // Search users by username or email for starting new chats
+    async searchUsers(query: string, currentUserId: string) {
+        if (!query || query.trim().length === 0) {
+            return [];
+        }
+        const cleanQuery = query.trim();
+        const users = await this.prisma.user.findMany({
+            where: {
+                AND: [
+                    { id: { not: currentUserId } },
+                    {
+                        OR: [
+                            { username: { contains: cleanQuery, mode: 'insensitive' } },
+                            { email: { startsWith: cleanQuery, mode: 'insensitive' } },
+                        ],
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                profileImg: true,
+                bio: true,
+            },
+            take: 20,
+        });
+        return users.map((u) => this.formatUser(u));
     }
 
+    // UPDATE PROFILE IMAGE
+    async updateProfileImg(user: { id: string }, base64Img: string) {
+        const secure_url = await this.cloudinaryService.uploadProfileImg(String(user.id), base64Img);
+        const updatedUser = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { profileImg: secure_url },
+        });
+        return this.formatUser(updatedUser);
+    }
 }
-

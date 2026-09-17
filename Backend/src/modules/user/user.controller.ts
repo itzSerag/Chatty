@@ -8,23 +8,19 @@ import {
     Delete,
     UseGuards,
     BadRequestException,
+    Query,
 } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { CurrentUser } from "../auth/decorators/user.decorator";
-import { UserDocument } from "./model/user.schema";
+import { User } from "@prisma/client";
 
-
-
-// MUST user auth guard before roles guard MUST
-// to extract the user from the cookie so its defined in the context
 @UseGuards(JwtAuthGuard)
 @Controller({ path: "users", version: "1" })
 export class UserController {
     constructor(private readonly userService: UserService) { }
-
 
     @Post()
     create(@Body() createUserDto: CreateUserDto) {
@@ -36,6 +32,14 @@ export class UserController {
         return this.userService.findAll();
     }
 
+    @Get("search")
+    searchUsers(
+        @CurrentUser() user: User,
+        @Query("q") query: string,
+    ) {
+        return this.userService.searchUsers(query, user.id);
+    }
+
     @Get(":id")
     findOne(@Param("id") id: string) {
         return this.userService.findOne(id);
@@ -45,6 +49,7 @@ export class UserController {
     update(@Param("id") id: string, @Body() updateUserDto: UpdateUserDto) {
         return this.userService.update(id, updateUserDto);
     }
+
     @Delete(":id")
     remove(@Param("id") id: string) {
         return this.userService.remove(id);
@@ -53,16 +58,14 @@ export class UserController {
     @Post('sub-admin')
     async createSubAdmin() { }
 
-
     @Patch('/profile/updateImg')
     async updateProfileImg(
-        @CurrentUser() user: UserDocument,
+        @CurrentUser() user: User,
         @Body('imgUrl') base64Img: string
     ) {
-        if (!base64Img.startsWith('data:image/')) {
+        if (!base64Img || !base64Img.startsWith('data:image/')) {
             throw new BadRequestException('Invalid Image Format');
         }
         return await this.userService.updateProfileImg(user, base64Img);
     }
-
 }

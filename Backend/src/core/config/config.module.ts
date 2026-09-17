@@ -7,12 +7,13 @@ import * as Joi from "joi";
         NestConfigModule.forRoot({
             isGlobal: true,
             validationSchema: Joi.object({
-                MONGO_URI: Joi.string().required(),
+                DATABASE_URL: Joi.string().required(),
                 JWT_SECRET: Joi.string().required(),
                 CLOUDINARY_CLOUD_NAME: Joi.string().required(),
                 CLOUDINARY_API_KEY: Joi.string().required(),
                 CLOUDINARY_API_SECRET: Joi.string().required(),
             }),
+            envFilePath: "./.env", 
         }),
 
     ],

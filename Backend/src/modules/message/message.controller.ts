@@ -2,9 +2,8 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/modules/auth/decorators/user.decorator';
-import { UserDocument } from 'src/modules/user/model/user.schema';
+import { User } from '@prisma/client';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { Types } from 'mongoose';
 
 @Controller({ path: "message", version: "1" })
 export class MessageController {
@@ -12,32 +11,26 @@ export class MessageController {
 
   @UseGuards(JwtAuthGuard)
   @Get('/users')
-  findAllUserForSidebar(@CurrentUser() user: UserDocument) {
-    return this.messageService.findAllUserForSidebar(String(user._id));
+  findAllUserForSidebar(@CurrentUser() user: User) {
+    return this.messageService.findAllUserForSidebar(user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('messages/:id')
   getMessagesHistory(
-    @CurrentUser() user: UserDocument,
-    @Param('id') _id: string,
+    @CurrentUser() user: User,
+    @Param('id') receiverId: string,
   ) {
-    return this.messageService.getMessagesHistory(
-      String(user._id),
-      String(_id),
-
-    );
+    return this.messageService.getMessagesHistory(user.id, receiverId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('send/:id')
   async sendMessage(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: User,
     @Param('id') receiverId: string,
     @Body() body: CreateMessageDto,
   ) {
-    const senderId = user._id;
-    const receiverObjectId = new Types.ObjectId(receiverId);
-    return await this.messageService.sendMessage(body.imageBase64, body.text, senderId, receiverObjectId);
+    return await this.messageService.sendMessage(body, user.id, receiverId);
   }
 }

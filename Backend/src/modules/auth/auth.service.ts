@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { UserDocument } from '../user/model/user.schema';
+import { User } from '@prisma/client';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import ms from 'ms';
@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { ITokenPayload } from './interface/token-payload.interface';
 import { CreateUserDto } from '../user/dto/create-user.dto';
+import { Role } from '../user/enums/role.enum';
 
 @Injectable()
 export class AuthService {
@@ -18,27 +19,29 @@ export class AuthService {
 
     async signup(createUserDto: CreateUserDto, response: Response) {
         const user = await this.userService.create(createUserDto);
-        this.setAuthCookie(user, response);
-        delete user.password
+        this.setAuthCookie(user as unknown as User, response);
+        if (user) {
+            delete (user as any).password;
+        }
         return user;
     }
 
-    login(user: UserDocument, response: Response): void {
+    login(user: User, response: Response): void {
         this.setAuthCookie(user, response);
     }
 
-    private setAuthCookie(user: UserDocument, response: Response): void {
+    private setAuthCookie(user: User, response: Response): void {
         const tokenPayload: ITokenPayload = {
-            _id: String(user._id),
-            role: user.role,
+            _id: String((user as any)._id || user.id),
+            role: (user.role as Role) || Role.USER,
         };
 
         const { token, expires } = this.createToken(tokenPayload);
 
         response.cookie('Authentication', token, {
             httpOnly: true,
-            secure: this.configService.get('NODE_ENV') === 'production', // Only send over HTTPS in production
-            sameSite: 'strict', // Prevent CSRF attacks
+            secure: this.configService.get('NODE_ENV') === 'production',
+            sameSite: 'strict',
             expires,
         });
     }

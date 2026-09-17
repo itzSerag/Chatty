@@ -1,0 +1,49 @@
+services:
+  chatty:
+    build:
+      context: ..
+      dockerfile: ./Backend/Dockerfile
+    env_file:
+      - ./.env
+    environment:
+      - NODE_ENV=development
+    container_name: chatty_backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app/Backend
+      - /app/Backend/node_modules
+      - /app/node_modules
+    depends_on:
+      chatty_postgres:
+        condition: service_healthy
+
+  chatty_postgres:
+    image: postgres:16
+    restart: always
+    container_name: chatty_postgres
+    ports:
+      - "5432:5432"
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seragAdmin -d chatty"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      default:
+        aliases:
+          - postgres
+
+  # for easy view postgres tables
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  postgres_data:
