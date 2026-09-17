@@ -1,22 +1,41 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import cookieParser from "cookie-parser";
-import * as dotenv from "dotenv";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { AllExceptionsFilter } from "./core/errors/errors.global.filter";
 import * as bodyParser from 'body-parser';
+import { Logger } from "nestjs-pino";
+import { AppConfigService } from "./core/config/config.service";
 
-// Load the appropriate .env file
-// TODO : change it to production
-const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env';
-dotenv.config({ path: envFile });
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-    // Enable CORS for Vercel
+    // Use Pino logger for all NestJS internal and HTTP logs
+    const logger = app.get(Logger);
+    app.useLogger(logger);
+
+    const configService = app.get(AppConfigService);
+
+    // Production origins + optional custom frontend URL from .env
+    const allowedOrigins = [
+        'https://realtime-mern-chatty-frontend.vercel.app',
+        ...(configService.frontendUrl ? [configService.frontendUrl] : []),
+    ];
+
+    // Dynamic CORS: automatically allows any localhost or 127.0.0.1 port (5173, 5174, etc.)
     app.enableCors({
-        origin: ['https://realtime-mern-chatty-frontend.vercel.app', 'http://localhost:5173'],
+        origin: (origin, callback) => {
+            // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+            if (!origin) return callback(null, true);
+
+            const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+            if (isLocal || allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+
+            return callback(new Error(`Blocked by CORS: Origin ${origin} is not allowed.`), false);
+        },
         credentials: true,
         methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
@@ -40,9 +59,9 @@ async function bootstrap() {
     app.setGlobalPrefix("api");
     app.useGlobalFilters(new AllExceptionsFilter());
 
-    const port = process.env.PORT || 3000;
+    const port = configService.port;
     await app.listen(port);
-    console.log(`Application is running on: ${await app.getUrl()}`);
+    logger.log(`🚀 Application is running on port ${port} in ${configService.nodeEnv} mode`);
 }
 
 bootstrap();

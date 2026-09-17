@@ -24,6 +24,7 @@ model User {
   role        String   @default("user")
   profileImg  String?  @default("")
   bio         String?
+  lastActive  DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

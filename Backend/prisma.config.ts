@@ -1,7 +1,7 @@
 
 import path from "node:path";
 import dotenv from "dotenv";
-import { defineConfig } from "prisma/config";
+import { defineConfig, env } from "prisma/config";
 
 // Load .env from current directory or Backend directory
 dotenv.config();
@@ -14,6 +14,6 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: process.env.DATABASE_URL,
+    url: env("DATABASE_URL")
   },
 });

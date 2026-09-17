@@ -1,6 +1,6 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -9,6 +9,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     catch(exception: unknown, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
+        const request = ctx.getRequest<Request>();
 
         let status = HttpStatus.INTERNAL_SERVER_ERROR;
         let message = 'An unexpected error occurred';
@@ -47,14 +48,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
             status = HttpStatus.BAD_REQUEST;
             message = 'Invalid data provided for database operation.';
         }
-        // Handle unknown errors
+        // Handle unexpected errors
         else {
             const error = exception as Error;
-            this.logger.warn(`Unexpected error: ${error?.message || error}`, error?.stack);
+            message = error?.message || message;
         }
 
-        // Log the error
-        this.logger.warn(`Error: ${message}`, (exception as Error)?.stack);
+        // Clean one-line logging: only log full stack traces for 5xx server errors
+        if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+            this.logger.error(
+                `[${request.method}] ${request.url} ${status} - ${message}`,
+                (exception as Error)?.stack,
+            );
+        } else {
+            this.logger.warn(`[${request.method}] ${request.url} ${status} - ${message}`);
+        }
 
         // Send the response
         response.status(status).json({

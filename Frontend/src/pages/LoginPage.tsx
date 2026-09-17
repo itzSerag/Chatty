@@ -32,7 +32,7 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="h-screen grid lg:grid-cols-2">
+        <div className="h-screen grid lg:grid-cols-2 py-8">
             {/* Left Side - Form */}
             <div className="flex flex-col justify-center items-center p-6 sm:p-12">
                 <div className="w-full max-w-md space-y-8">

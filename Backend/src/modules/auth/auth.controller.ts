@@ -7,9 +7,14 @@ import { Response } from 'express';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { LocalGuard } from './guards/local.guard';
 
+import { AppConfigService } from '../../core/config/config.service';
+
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: AppConfigService,
+  ) { }
 
   @Post('signup')
   async signup(
@@ -38,7 +43,7 @@ export class AuthController {
   logout(@Res({ passthrough: true }) response: Response) {
     response.cookie('Authentication', '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.configService.isProduction,
       expires: new Date(0),
     });
     return response.send({ message: 'Logged out successfully' });

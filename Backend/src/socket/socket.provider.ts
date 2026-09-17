@@ -6,7 +6,19 @@ import {
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 
-@WebSocketGateway({ cors: { origin: "*" } })
+@WebSocketGateway({
+    cors: {
+        origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+            if (!origin) return callback(null, true);
+            const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+            if (isLocal || origin === 'https://realtime-mern-chatty-frontend.vercel.app') {
+                return callback(null, true);
+            }
+            return callback(new Error('Blocked by CORS'), false);
+        },
+        credentials: true,
+    },
+})
 export class WebSocketsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     @WebSocketServer() server: Server;

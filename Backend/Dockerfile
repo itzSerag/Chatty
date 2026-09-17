@@ -21,9 +21,6 @@ COPY Frontend/package.json ./Frontend/package.json
 COPY Backend/prisma.config.ts ./Backend/prisma.config.ts
 COPY Backend/prisma ./Backend/prisma
 
-# Build-time placeholder for prisma generate (overridden at runtime by docker-compose env_file)
-ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
-
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -31,5 +28,5 @@ COPY . .
 WORKDIR /app/Backend
 RUN pnpm exec prisma generate
 
-EXPOSE 3000
+EXPOSE 5000
 CMD ["pnpm", "start:dev"]
