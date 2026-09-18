@@ -186,17 +186,25 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         const socket = io(BASE_URL, {
             query: {
                 userId
-            }
+            },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
         });
         set({ socket });
 
         socket.on('connect', () => {
+            console.log('Socket connected:', socket.id);
             set({ socket });
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err.message);
         });
 
         socket.on('getOnlineUsers', (usersIds) => {
             set({ onlineUsers: usersIds });
-            console.log(usersIds);
         });
     },
     dsiConnectSocket: async () => {

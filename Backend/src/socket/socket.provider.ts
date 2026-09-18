@@ -14,10 +14,15 @@ import { Server, Socket } from "socket.io";
             if (isLocal || origin === 'https://realtime-mern-chatty-frontend.vercel.app') {
                 return callback(null, true);
             }
+            // Allow any Render or Vercel origin for the same project
+            if (origin.includes('onrender.com') || origin.includes('vercel.app')) {
+                return callback(null, true);
+            }
             return callback(new Error('Blocked by CORS'), false);
         },
         credentials: true,
     },
+    transports: ['websocket', 'polling'],
 })
 export class WebSocketsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
