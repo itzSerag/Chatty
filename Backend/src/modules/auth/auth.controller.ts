@@ -33,10 +33,10 @@ export class AuthController {
   ) {
     this.authService.login(user, response);
 
-    return response.send({
+    return {
       ...user,
       password: '',
-    });
+    };
   }
 
   @Post('logout')
@@ -46,7 +46,7 @@ export class AuthController {
       secure: this.configService.isProduction,
       expires: new Date(0),
     });
-    return response.send({ message: 'Logged out successfully' });
+    return { message: 'Logged out successfully' };
   }
 
   @UseGuards(JwtAuthGuard)

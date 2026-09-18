@@ -9,7 +9,7 @@ import {
   messages,
   MessageType,
 } from '../../core/database/schema';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, or, desc, asc, sql, inArray } from 'drizzle-orm';
 
 @Injectable()
 export class MessageService {
@@ -32,12 +32,20 @@ export class MessageService {
 
   // Fetch only users that the current user has chatted with (WhatsApp Sidebar style)
   async findAllUserForSidebar(userId: string) {
+    // 1. Get all conversation IDs that current user participates in
+    const userConvs = await this.db
+      .select({ conversationId: conversationParticipants.conversationId })
+      .from(conversationParticipants)
+      .where(eq(conversationParticipants.userId, userId));
+
+    const conversationIds = userConvs.map((c) => c.conversationId);
+    if (conversationIds.length === 0) {
+      return [];
+    }
+
+    // 2. Fetch conversations with partner participant and last message
     const userConversations = await this.db.query.conversations.findMany({
-      where: sql`EXISTS (
-        SELECT 1 FROM ${conversationParticipants} 
-        WHERE ${conversationParticipants.conversationId} = ${conversations.id} 
-        AND ${conversationParticipants.userId} = ${userId}
-      )`,
+      where: inArray(conversations.id, conversationIds),
       orderBy: [desc(conversations.lastMessageAt)],
       with: {
         participants: {
@@ -92,15 +100,26 @@ export class MessageService {
 
   // Get message history between two users
   async getMessagesHistory(userId: string, otherUserId: string) {
-    // Find direct conversation between the two users
-    const conversation = await this.db.query.conversations.findFirst({
-      where: and(
-        eq(conversations.isGroup, false),
-        sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${userId})`,
-        sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${otherUserId})`,
-      ),
-      columns: { id: true },
-    });
+    // Find direct 1-on-1 conversation between the two users
+    const [conversation] = await this.db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .innerJoin(
+        conversationParticipants,
+        eq(conversations.id, conversationParticipants.conversationId),
+      )
+      .where(
+        and(
+          eq(conversations.isGroup, false),
+          or(
+            eq(conversationParticipants.userId, userId),
+            eq(conversationParticipants.userId, otherUserId),
+          ),
+        ),
+      )
+      .groupBy(conversations.id)
+      .having(sql`count(DISTINCT ${conversationParticipants.userId}) = 2`)
+      .limit(1);
 
     if (!conversation) {
       return [];
@@ -141,17 +160,28 @@ export class MessageService {
 
     // Execute atomic transaction
     const newMessage = await this.db.transaction(async (tx) => {
-      // 1. Find or create 1-on-1 conversation
-      let conversation = await tx.query.conversations.findFirst({
-        where: and(
-          eq(conversations.isGroup, false),
-          sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${senderId})`,
-          sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${receiverId})`,
-        ),
-        columns: { id: true },
-      });
+      // 1. Find or create 1-on-1 direct conversation
+      const [existingConv] = await tx
+        .select({ id: conversations.id })
+        .from(conversations)
+        .innerJoin(
+          conversationParticipants,
+          eq(conversations.id, conversationParticipants.conversationId),
+        )
+        .where(
+          and(
+            eq(conversations.isGroup, false),
+            or(
+              eq(conversationParticipants.userId, senderId),
+              eq(conversationParticipants.userId, receiverId),
+            ),
+          ),
+        )
+        .groupBy(conversations.id)
+        .having(sql`count(DISTINCT ${conversationParticipants.userId}) = 2`)
+        .limit(1);
 
-      let conversationId = conversation?.id;
+      let conversationId = existingConv?.id;
 
       if (!conversationId) {
         const [createdConv] = await tx
