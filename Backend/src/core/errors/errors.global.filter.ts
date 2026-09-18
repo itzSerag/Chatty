@@ -1,5 +1,4 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -24,29 +23,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
                 message = (responsePayload as { message: string }).message || message;
             }
         }
-        // Handle Prisma Known Request Errors
-        else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-            if (exception.code === 'P2002') {
+        // Handle Postgres/Database Errors (e.g. unique constraint 23505, foreign key 23503)
+        else if (exception && typeof exception === 'object' && 'code' in exception) {
+            const dbError = exception as { code?: string; detail?: string; message?: string };
+            if (dbError.code === '23505') {
                 status = HttpStatus.CONFLICT;
-                const target = (exception.meta?.target as string[]) || [];
-                message = target.length
-                    ? `This '${target.join(', ')}' already exists.`
-                    : 'A record with this unique field already exists.';
-            } else if (exception.code === 'P2025') {
-                status = HttpStatus.NOT_FOUND;
-                message = (exception.meta?.cause as string) || 'Record not found.';
-            } else if (exception.code === 'P2003') {
+                message = dbError.detail || 'A record with this field already exists.';
+            } else if (dbError.code === '23503') {
                 status = HttpStatus.BAD_REQUEST;
-                message = 'Related record not found (Foreign key constraint violation).';
+                message = dbError.detail || 'Related record not found (Foreign key constraint violation).';
+            } else if (dbError.code === '23502') {
+                status = HttpStatus.BAD_REQUEST;
+                message = `Missing required field: ${dbError.detail || ''}`;
             } else {
                 status = HttpStatus.BAD_REQUEST;
-                message = `Database error: ${exception.message}`;
+                message = dbError.message || 'Database operation failed.';
             }
-        }
-        // Handle Prisma Validation Errors
-        else if (exception instanceof Prisma.PrismaClientValidationError) {
-            status = HttpStatus.BAD_REQUEST;
-            message = 'Invalid data provided for database operation.';
         }
         // Handle unexpected errors
         else {

@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "./core/config/config.module";
 import { LoggerModule } from "./core/logger/logger.module";
-import { PrismaModule } from "./core/database/prisma.module";
+import { DrizzleModule } from "./core/database/drizzle.module";
 import { UserModule } from "./modules/user/user.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtModule } from "@nestjs/jwt";
@@ -13,7 +13,7 @@ import { SocketModule } from "./socket/socket.module";
   imports: [
     ConfigModule,
     LoggerModule,
-    PrismaModule,
+    DrizzleModule,
     UserModule,
     AuthModule,
     JwtModule,

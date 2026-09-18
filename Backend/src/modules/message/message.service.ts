@@ -1,19 +1,28 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../core/database/prisma.service';
-import { CloudinaryService } from "../../core/cloudinary";
+import { Inject, Injectable } from '@nestjs/common';
+import { CloudinaryService } from '../../core/cloudinary';
 import { WebSocketsGateway } from '../../socket/socket.provider';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { MessageType } from '@prisma/client';
+import { DRIZZLE, DrizzleDB } from '../../core/database/drizzle.provider';
+import {
+  conversations,
+  conversationParticipants,
+  messages,
+  MessageType,
+} from '../../core/database/schema';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
 
 @Injectable()
 export class MessageService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(DRIZZLE)
+    private readonly db: DrizzleDB,
     private readonly cloudinaryService: CloudinaryService,
     private readonly webSocketsProvider: WebSocketsGateway,
-  ) { }
+  ) {}
 
-  private formatMessage<T extends { id: string }>(msg: T | null): (T & { _id: string }) | null {
+  private formatMessage<T extends { id: string }>(
+    msg: T | null | undefined,
+  ): (T & { _id: string }) | null {
     if (!msg) return null;
     return {
       ...msg,
@@ -23,23 +32,19 @@ export class MessageService {
 
   // Fetch only users that the current user has chatted with (WhatsApp Sidebar style)
   async findAllUserForSidebar(userId: string) {
-    const conversations = await this.prisma.conversation.findMany({
-      where: {
+    const userConversations = await this.db.query.conversations.findMany({
+      where: sql`EXISTS (
+        SELECT 1 FROM ${conversationParticipants} 
+        WHERE ${conversationParticipants.conversationId} = ${conversations.id} 
+        AND ${conversationParticipants.userId} = ${userId}
+      )`,
+      orderBy: [desc(conversations.lastMessageAt)],
+      with: {
         participants: {
-          some: { userId },
-        },
-      },
-      orderBy: {
-        lastMessageAt: 'desc',
-      },
-      include: {
-        participants: {
-          where: {
-            userId: { not: userId },
-          },
-          include: {
+          where: (participants, { ne }) => ne(participants.userId, userId),
+          with: {
             user: {
-              select: {
+              columns: {
                 id: true,
                 username: true,
                 email: true,
@@ -51,9 +56,9 @@ export class MessageService {
           },
         },
         messages: {
-          take: 1,
-          orderBy: { createdAt: 'desc' },
-          select: {
+          limit: 1,
+          orderBy: [desc(messages.createdAt)],
+          columns: {
             id: true,
             text: true,
             type: true,
@@ -65,7 +70,7 @@ export class MessageService {
     });
 
     // Map each conversation to its partner user for the sidebar list
-    const sidebarUsers = conversations
+    const sidebarUsers = userConversations
       .map((conv) => {
         const partner = conv.participants[0]?.user;
         if (!partner) return null;
@@ -88,30 +93,28 @@ export class MessageService {
   // Get message history between two users
   async getMessagesHistory(userId: string, otherUserId: string) {
     // Find direct conversation between the two users
-    const conversation = await this.prisma.conversation.findFirst({
-      where: {
-        isGroup: false,
-        AND: [
-          { participants: { some: { userId } } },
-          { participants: { some: { userId: otherUserId } } },
-        ],
-      },
-      select: { id: true },
+    const conversation = await this.db.query.conversations.findFirst({
+      where: and(
+        eq(conversations.isGroup, false),
+        sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${userId})`,
+        sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${otherUserId})`,
+      ),
+      columns: { id: true },
     });
 
     if (!conversation) {
       return [];
     }
 
-    const messages = await this.prisma.message.findMany({
-      where: { conversationId: conversation.id },
-      orderBy: { createdAt: 'asc' },
+    const chatMessages = await this.db.query.messages.findMany({
+      where: eq(messages.conversationId, conversation.id),
+      orderBy: [asc(messages.createdAt)],
     });
 
-    return messages.map((m) => this.formatMessage(m));
+    return chatMessages.map((m) => this.formatMessage(m));
   }
 
-  // Send message using a Prisma Transaction
+  // Send message using an atomic database transaction
   async sendMessage(
     dto: CreateMessageDto,
     senderId: string,
@@ -137,36 +140,37 @@ export class MessageService {
     }
 
     // Execute atomic transaction
-    const newMessage = await this.prisma.$transaction(async (tx) => {
+    const newMessage = await this.db.transaction(async (tx) => {
       // 1. Find or create 1-on-1 conversation
-      let conversation = await tx.conversation.findFirst({
-        where: {
-          isGroup: false,
-          AND: [
-            { participants: { some: { userId: senderId } } },
-            { participants: { some: { userId: receiverId } } },
-          ],
-        },
+      let conversation = await tx.query.conversations.findFirst({
+        where: and(
+          eq(conversations.isGroup, false),
+          sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${senderId})`,
+          sql`EXISTS (SELECT 1 FROM ${conversationParticipants} WHERE ${conversationParticipants.conversationId} = ${conversations.id} AND ${conversationParticipants.userId} = ${receiverId})`,
+        ),
+        columns: { id: true },
       });
 
-      if (!conversation) {
-        conversation = await tx.conversation.create({
-          data: {
-            isGroup: false,
-            participants: {
-              create: [
-                { userId: senderId },
-                { userId: receiverId },
-              ],
-            },
-          },
-        });
+      let conversationId = conversation?.id;
+
+      if (!conversationId) {
+        const [createdConv] = await tx
+          .insert(conversations)
+          .values({ isGroup: false })
+          .returning();
+        conversationId = createdConv.id;
+
+        await tx.insert(conversationParticipants).values([
+          { userId: senderId, conversationId },
+          { userId: receiverId, conversationId },
+        ]);
       }
 
       // 2. Create the message
-      const created = await tx.message.create({
-        data: {
-          conversationId: conversation.id,
+      const [created] = await tx
+        .insert(messages)
+        .values({
+          conversationId,
           senderId,
           receiverId,
           text: dto.text || '',
@@ -176,14 +180,14 @@ export class MessageService {
           fileSize: dto.fileSize || null,
           mimeType: dto.mimeType || null,
           type: messageType,
-        },
-      });
+        })
+        .returning();
 
       // 3. Update conversation lastMessageAt
-      await tx.conversation.update({
-        where: { id: conversation.id },
-        data: { lastMessageAt: new Date() },
-      });
+      await tx
+        .update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, conversationId));
 
       return created;
     });

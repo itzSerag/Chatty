@@ -15,8 +15,8 @@ export class CloudinaryService {
         return res.secure_url;
     }
 
-    async uploadChatImg(base64Img: string, senderId: string, receiverId: string): Promise<string> {
-        if (!base64Img) return;
+    async uploadChatImg(base64Img: string, senderId: string, receiverId: string): Promise<string | null> {
+        if (!base64Img) return null;
 
         const res = await cloudinary.uploader.upload(base64Img, {
             folder: 'Chat-Img',

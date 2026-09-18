@@ -7,6 +7,7 @@ import * as bodyParser from 'body-parser';
 import { Logger } from "nestjs-pino";
 import { AppConfigService } from "./core/config/config.service";
 
+import "dotenv/config";
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, { bufferLogs: true });

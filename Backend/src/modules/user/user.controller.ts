@@ -15,7 +15,7 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { CurrentUser } from "../auth/decorators/user.decorator";
-import { User } from "@prisma/client";
+import { User } from "../../core/database/schema";
 
 @UseGuards(JwtAuthGuard)
 @Controller({ path: "users", version: "1" })

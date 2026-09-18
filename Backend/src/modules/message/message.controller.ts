@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/modules/auth/decorators/user.decorator';
-import { User } from '@prisma/client';
+import { User } from '../../core/database/schema';
 import { CreateMessageDto } from './dto/create-message.dto';
 
 @Controller({ path: "message", version: "1" })

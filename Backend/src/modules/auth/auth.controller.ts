@@ -2,7 +2,7 @@ import { Controller, Post, Body, UseGuards, Res, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { CurrentUser } from './decorators/user.decorator';
-import { User } from '@prisma/client';
+import { User } from '../../core/database/schema';
 import { Response } from 'express';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { LocalGuard } from './guards/local.guard';
