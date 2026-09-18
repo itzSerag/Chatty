@@ -35,9 +35,10 @@ export const useChatStore = create<IChatState>((set, get) => ({
             // return an array of users from db
             const resUsers = await axiosInstance.get('users');
             set({ users: Array.isArray(resUsers.data) ? resUsers.data : [] });
-        } catch (error) {
-            toast.error('Something went wrong, Please try again later');
-            console.log(error);
+        } catch (error: any) {
+            const message = error?.response?.data?.message || 'Something went wrong, Please try again later';
+            toast.error(message);
+            console.log('Error fetching users:', error);
         } finally {
             set({ isUsersLoading: false });
         }
@@ -54,8 +55,9 @@ export const useChatStore = create<IChatState>((set, get) => ({
                     messages: [...get().messages, res.data]
                 });
             }
-        } catch (err) {
-            toast.error('Something went wrong, Please try again later');
+        } catch (err: any) {
+            const message = err?.response?.data?.message || 'Something went wrong, Please try again later';
+            toast.error(message);
             console.log(err);
         }
     },
@@ -66,8 +68,9 @@ export const useChatStore = create<IChatState>((set, get) => ({
         try {
             const resMessages = await axiosInstance.get(`message/messages/${userId}`);
             set({ messages: Array.isArray(resMessages.data) ? resMessages.data : [] });
-        } catch (error) {
-            toast.error('Something went wrong, Please try again later');
+        } catch (error: any) {
+            const message = error?.response?.data?.message || 'Something went wrong, Please try again later';
+            toast.error(message);
             console.log(error);
             set({ messages: [] });
         } finally {

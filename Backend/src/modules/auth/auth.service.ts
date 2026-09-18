@@ -19,18 +19,22 @@ export class AuthService {
 
     async signup(createUserDto: CreateUserDto, response: Response) {
         const user = await this.userService.create(createUserDto);
-        this.setAuthCookie(user as unknown as User, response);
+        const token = this.setAuthCookie(user as unknown as User, response);
         if (user) {
             delete (user as any).password;
         }
-        return user;
+        return {
+            ...user,
+            token,
+        };
     }
 
-    login(user: User, response: Response): void {
-        this.setAuthCookie(user, response);
+    login(user: User, response: Response): { token: string } {
+        const token = this.setAuthCookie(user, response);
+        return { token };
     }
 
-    private setAuthCookie(user: User, response: Response): void {
+    private setAuthCookie(user: User, response: Response): string {
         const tokenPayload: ITokenPayload = {
             _id: String((user as any)._id || user.id),
             role: (user.role as Role) || Role.USER,
@@ -40,10 +44,12 @@ export class AuthService {
 
         response.cookie('Authentication', token, {
             httpOnly: true,
-            secure: this.configService.get('NODE_ENV') === 'production',
-            sameSite: 'strict',
+            secure: true,
+            sameSite: 'none',
             expires,
         });
+
+        return token;
     }
 
     private createToken(payload: ITokenPayload): { token: string; expires: Date } {

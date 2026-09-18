@@ -61,7 +61,7 @@ async function bootstrap() {
     app.useGlobalFilters(new AllExceptionsFilter());
 
     const port = configService.port;
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
     logger.log(`🚀 Application is running on port ${port} in ${configService.nodeEnv} mode`);
 }
 

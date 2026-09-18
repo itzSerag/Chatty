@@ -31,11 +31,12 @@ export class AuthController {
     @CurrentUser() user: User,
     @Res({ passthrough: true }) response: Response,
   ) {
-    this.authService.login(user, response);
+    const { token } = this.authService.login(user, response);
 
     return {
       ...user,
       password: '',
+      token,
     };
   }
 
@@ -43,7 +44,8 @@ export class AuthController {
   logout(@Res({ passthrough: true }) response: Response) {
     response.cookie('Authentication', '', {
       httpOnly: true,
-      secure: this.configService.isProduction,
+      secure: true,
+      sameSite: 'none',
       expires: new Date(0),
     });
     return { message: 'Logged out successfully' };

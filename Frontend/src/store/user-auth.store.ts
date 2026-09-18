@@ -3,7 +3,8 @@ import { axiosInstance } from '../lib/axios';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client'
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5000" : "https://realtime-mern-chatty-backend.vercel.app";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const BASE_URL = API_URL.replace(/\/api(\/v\d+)?\/?$/, "");
 
 
 interface ILoginData {
@@ -12,6 +13,7 @@ interface ILoginData {
 }
 
 interface ISignupData extends ILoginData {
+    username: string;
     phoneNumber: string;
 }
 
@@ -71,6 +73,7 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
             get().connectSocket()
         } catch (err) {
             console.log('User not authenticated:', err);
+            localStorage.removeItem('token');
             set({ authUser: null });
         } finally {
             set({ isCheckingAuth: false });
@@ -81,6 +84,9 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         set({ isLoggingIn: true });
         try {
             const res = await axiosInstance.post('/auth/login', data);
+            if (res.data?.token) {
+                localStorage.setItem('token', res.data.token);
+            }
             set({ authUser: normalizeUser(res.data) });
             toast.success('Login Success');
 
@@ -92,7 +98,8 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
                 if (err.response.status === 401 || err.response.status === 404) {
                     toast.error('Invalid Credentials');
                 } else {
-                    toast.error('Login Failed, please try again later');
+                    const errorMessage = err.response.data?.message || 'Login Failed, please try again later';
+                    toast.error(errorMessage);
                 }
             } else if (err.request) {
                 toast.error('Network Error: Please check your internet connection');
@@ -109,16 +116,22 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         set({ isSigningUp: true });
         try {
             const res = await axiosInstance.post('/auth/signup', data);
+            if (res.data?.token) {
+                localStorage.setItem('token', res.data.token);
+            }
             set({ authUser: normalizeUser(res.data) });
             toast.success('Account Created');
         } catch (err: any) {
             if (err.response) {
-                const { status, data } = err.response;
+                const { status, data: responseData } = err.response;
                 if (status === 409) {
-                    const errorMessage = data.message || 'This email or phone number already exists';
+                    const errorMessage = responseData?.message || 'This email or phone number already exists';
                     toast.error(errorMessage);
                 } else {
-                    toast.error('Signup Failed, please try again later');
+                    const errorMessage = Array.isArray(responseData?.message)
+                        ? responseData.message.join(', ')
+                        : responseData?.message || 'Signup Failed, please try again later';
+                    toast.error(errorMessage);
                 }
             } else if (err.request) {
                 toast.error('Network Error: Please check your internet connection');
@@ -134,12 +147,14 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
     logout: async () => {
         try {
             await axiosInstance.post('/auth/logout');
+            localStorage.removeItem('token');
             set({ authUser: null });
             toast.success('Logout Successful');
             get().dsiConnectSocket();
             window.location.reload();
             window.location.href = '/';
         } catch (err) {
+            localStorage.removeItem('token');
             toast.error('Error happened while logging out');
             console.log(err);
         }
