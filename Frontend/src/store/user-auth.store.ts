@@ -3,7 +3,7 @@ import { axiosInstance } from '../lib/axios';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client'
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5000" : "https://realtime-mern-chatty-backend.vercel.app";
 
 
 interface ILoginData {
@@ -16,13 +16,25 @@ interface ISignupData extends ILoginData {
 }
 
 interface IAuthUser {
-    // Define the shape of the authenticated user object
-    _id: string;
+    _id?: string;
+    id?: string;
     email: string;
+    username?: string;
     phoneNumber?: string;
     imgUrl?: string;
-    // Add other user properties as needed
+    profileImg?: string;
 }
+
+const normalizeUser = (user: any): IAuthUser | null => {
+    if (!user) return null;
+    return {
+        ...user,
+        _id: user._id || user.id,
+        id: user.id || user._id,
+        imgUrl: user.imgUrl || user.profileImg || null,
+        profileImg: user.profileImg || user.imgUrl || null,
+    };
+};
 
 interface IAuthStore {
     authUser: IAuthUser | null;
@@ -54,7 +66,7 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
     checkAuth: async () => {
         try {
             const res = await axiosInstance.get('/auth/user');
-            set({ authUser: res.data });
+            set({ authUser: normalizeUser(res.data) });
 
             get().connectSocket()
         } catch (err) {
@@ -69,7 +81,7 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         set({ isLoggingIn: true });
         try {
             const res = await axiosInstance.post('/auth/login', data);
-            set({ authUser: res.data });
+            set({ authUser: normalizeUser(res.data) });
             toast.success('Login Success');
 
             // Connect to the socket after login
@@ -97,7 +109,7 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         set({ isSigningUp: true });
         try {
             const res = await axiosInstance.post('/auth/signup', data);
-            set({ authUser: res.data });
+            set({ authUser: normalizeUser(res.data) });
             toast.success('Account Created');
         } catch (err: any) {
             if (err.response) {
@@ -137,7 +149,7 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
         set({ isUpdatingProfile: true });
         try {
             const res = await axiosInstance.patch('/users/profile/updateImg', data);
-            set({ authUser: res.data });
+            set({ authUser: normalizeUser(res.data) });
             toast.success('Profile updated successfully');
         } catch (err: any) {
             if (err.response.status === 413) {
@@ -151,31 +163,26 @@ export const useAuthStore = create<IAuthStore>((set, get) => ({
     },
 
     connectSocket: async () => {
-
-        // If the the user not auth or the user already connected then dont make a connection
-
+        // If the user not auth or socket already exists & connected then dont make a connection
         const { authUser } = get();
-        if (!authUser || get().socket?.connected) return;
-        // Implement socket connection logic here
+        const userId = authUser?._id || authUser?.id;
+        if (!userId || get().socket?.connected) return;
+
         const socket = io(BASE_URL, {
             query: {
-                userId: authUser._id
+                userId
             }
         });
-        socket.on('connect', () => {
-            set({ socket })
+        set({ socket });
 
+        socket.on('connect', () => {
+            set({ socket });
         });
 
         socket.on('getOnlineUsers', (usersIds) => {
-            set({ onlineUsers: usersIds })
+            set({ onlineUsers: usersIds });
             console.log(usersIds);
-
-        })
-
-
-
-
+        });
     },
     dsiConnectSocket: async () => {
         // Implement socket disconnection logic here

@@ -6,6 +6,11 @@ export const ChatHeader = () => {
     const { selectedUser, setSelectedUser } = useChatStore();
     const { onlineUsers } = useAuthStore();
 
+    if (!selectedUser) return null;
+
+    const targetUserId = selectedUser._id || selectedUser.id;
+    const isOnline = onlineUsers?.includes(targetUserId);
+
     return (
         <div className="p-2.5 border-b border-base-300">
             <div className="flex items-center justify-between">
@@ -13,7 +18,10 @@ export const ChatHeader = () => {
                     {/* Avatar */}
                     <div className="avatar">
                         <div className="size-10 rounded-full relative">
-                            <img src={selectedUser.imgUrl || "/avatar.png"} alt={selectedUser.username} />
+                            <img
+                                src={selectedUser.imgUrl || selectedUser.profileImg || "/avatar.png"}
+                                alt={selectedUser.username || "User"}
+                            />
                         </div>
                     </div>
 
@@ -21,7 +29,7 @@ export const ChatHeader = () => {
                     <div>
                         <h3 className="font-medium">{selectedUser.username}</h3>
                         <p className="text-sm text-base-content/70">
-                            {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+                            {isOnline ? "Online" : "Offline"}
                         </p>
                     </div>
                 </div>

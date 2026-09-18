@@ -30,75 +30,79 @@ export const useChatStore = create<IChatState>((set, get) => ({
     isUsersLoading: false,
     selectedUser: null,
     getUsers: async () => {
-
-        set({ isUsersLoading: true })
+        set({ isUsersLoading: true });
         try {
             // return an array of users from db
             const resUsers = await axiosInstance.get('users');
-            set({ users: resUsers.data })
+            set({ users: Array.isArray(resUsers.data) ? resUsers.data : [] });
         } catch (error) {
-            toast.error('Something went wrong, Please try again later')
+            toast.error('Something went wrong, Please try again later');
             console.log(error);
-
         } finally {
-            set({ isUsersLoading: false })
+            set({ isUsersLoading: false });
         }
-
-
     },
 
     sendMessage: async ({ text, imageBase64 }) => {
         try {
             const { selectedUser } = get();
             if (!selectedUser) return;
-            await axiosInstance.post(`/message/send/${selectedUser._id}`, { text, imageBase64 });
-            // Message will be added through the socket event
+            const targetId = selectedUser._id || selectedUser.id;
+            const res = await axiosInstance.post(`/message/send/${targetId}`, { text, imageBase64 });
+            if (res.data) {
+                set({
+                    messages: [...get().messages, res.data]
+                });
+            }
         } catch (err) {
-            toast.error('Something went wrong, Please try again later')
+            toast.error('Something went wrong, Please try again later');
             console.log(err);
         }
     },
 
     getMessages: async (userId: string) => {
-        set({ isMessagesLoading: true })
+        set({ isMessagesLoading: true });
 
         try {
-            const resMessages = await axiosInstance.get(`message/messages/${userId}`)
-            set({ messages: resMessages.data })
+            const resMessages = await axiosInstance.get(`message/messages/${userId}`);
+            set({ messages: Array.isArray(resMessages.data) ? resMessages.data : [] });
         } catch (error) {
-            toast.error('Something went wrong, Please try again later')
+            toast.error('Something went wrong, Please try again later');
             console.log(error);
-
+            set({ messages: [] });
         } finally {
-            set({ isMessagesLoading: false })
+            set({ isMessagesLoading: false });
         }
     },
 
     setSelectedUser: (user) => {
-        set({ selectedUser: user })
+        set({ selectedUser: user, messages: [] });
     },
-
 
     subscribeToMessages: () => {
         const { selectedUser } = get();
         if (!selectedUser) return;
 
         // get the socket from authStore global state
-        const socket = useAuthStore.getState().socket
+        const socket = useAuthStore.getState().socket;
+        if (!socket) return;
 
-        socket.on("newMessage", (newMessage) => {
-            if (newMessage.senderId !== selectedUser._id) return
+        socket.off("newMessage");
+
+        const targetId = selectedUser._id || selectedUser.id;
+
+        socket.on("newMessage", (newMessage: any) => {
+            if (newMessage.senderId !== targetId) return;
             set({
                 // keep all the messages already and add the new one 
                 messages: [...get().messages, newMessage]
-            })
-        })
+            });
+        });
     },
 
     unSubscribeFromMessages: () => {
-        const socket = useAuthStore.getState().socket
-        socket.off("newMessage")
+        const socket = useAuthStore.getState().socket;
+        if (!socket) return;
+        socket.off("newMessage");
     }
-
-
-})) 
+})); 

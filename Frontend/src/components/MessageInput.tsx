@@ -43,12 +43,9 @@ export const MessageInput = () => {
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    const handleSendMessage = async (e) => {
+    const handleSendMessage = async (e: any) => {
         e.preventDefault();
         if (!text.trim() && !imagePreview) return;
-        if (!text.trim()) {
-            toast.error('Text must be provided')
-        }
 
         try {
             await sendMessage({ text: text.trim(), imageBase64: imagePreview });
