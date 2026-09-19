@@ -37,12 +37,22 @@ export const Navbar = () => {
 
             {authUser && (
               <>
-                <Link to={"/profile"} className={`btn btn-sm gap-2`}>
-                  <User className="size-5" />
-                  <span className="hidden sm:inline">Profile</span>
+                <Link to={"/profile"} className="btn btn-sm gap-2">
+                  {authUser.profileImg || authUser.imgUrl ? (
+                    <img
+                      src={authUser.profileImg || authUser.imgUrl}
+                      alt={authUser.username || "Profile"}
+                      className="size-5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="size-4" />
+                  )}
+                  <span className="font-medium max-w-[120px] truncate">
+                    {authUser.username || "Profile"}
+                  </span>
                 </Link>
 
-                <button className="flex gap-2 items-center" onClick={logout}>
+                <button className="flex gap-2 items-center btn btn-sm btn-ghost" onClick={logout}>
                   <LogOut className="size-5" />
                   <span className="hidden sm:inline">Logout</span>
                 </button>

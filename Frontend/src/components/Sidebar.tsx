@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { Link } from "react-router-dom";
 
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
@@ -55,7 +56,7 @@ export const Sidebar = () => {
             </div>
 
             {/* Showing the users */}
-            <div className="overflow-y-auto w-full py-3">
+            <div className="overflow-y-auto w-full py-3 flex-1">
                 {filteredUsers.map((user: any) => {
                     const uId = user._id || user.id;
                     const isOnline = onlineUsers?.includes(uId);
@@ -74,6 +75,9 @@ export const Sidebar = () => {
                                     src={user.imgUrl || user.profileImg || "/avatar.png"}
                                     alt={user.username || "User"}
                                     className="size-12 object-cover rounded-full"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "/avatar.png";
+                                    }}
                                 />
                                 {isOnline && (
                                     <span
@@ -98,6 +102,38 @@ export const Sidebar = () => {
                     <div className="text-center text-zinc-500 py-4">No online users</div>
                 )}
             </div>
+
+            {/* Current logged-in user profile footer */}
+            {authUser && (
+                <div className="p-2 border-t border-base-300 bg-base-200/50 mt-auto">
+                    <Link
+                        to="/profile"
+                        className="w-full p-2 flex items-center gap-3 rounded-lg hover:bg-base-300/80 transition-colors"
+                        title="View and edit your profile"
+                    >
+                        <div className="relative mx-auto lg:mx-0">
+                            <img
+                                src={authUser.imgUrl || authUser.profileImg || "/avatar.png"}
+                                alt={authUser.username || "You"}
+                                className="size-10 object-cover rounded-full"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/avatar.png";
+                                }}
+                            />
+                            <span className="absolute bottom-0 right-0 size-2.5 bg-green-500 rounded-full ring-2 ring-base-100" />
+                        </div>
+                        <div className="hidden lg:block text-left min-w-0 flex-1">
+                            <div className="font-semibold text-sm truncate flex items-center gap-1.5">
+                                <span className="truncate">{authUser.username}</span>
+                                <span className="badge badge-xs badge-primary">You</span>
+                            </div>
+                            <div className="text-xs text-zinc-400 truncate">
+                                {authUser.email}
+                            </div>
+                        </div>
+                    </Link>
+                </div>
+            )}
         </aside>
     );
 };
