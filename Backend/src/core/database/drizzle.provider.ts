@@ -20,9 +20,11 @@ export const drizzleProvider = {
       throw new Error('DATABASE_URL is not defined in environment variables');
     }
 
-    // Pool
+    // Connection pool optimized for cloud container memory limits
     const client = postgres(databaseUrl, {
-      max: 20,
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10,
     });
 
     const db = drizzle(client, { schema });

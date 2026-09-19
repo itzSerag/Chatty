@@ -32,7 +32,7 @@ export class WebSocketsGateway implements OnGatewayConnection, OnGatewayDisconne
     handleConnection(client: Socket) {
         const userId = client.handshake.query.userId as string;
         if (!userId) {
-            console.error("No userId provided in WebSocket handshake!");
+            client.disconnect(true);
             return;
         }
         this.onlineUsers[userId] = client.id;

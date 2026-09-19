@@ -18,11 +18,13 @@ export class CloudinaryService {
     async uploadChatImg(base64Img: string, senderId: string, receiverId: string): Promise<string | null> {
         if (!base64Img) return null;
 
+        const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
         const res = await cloudinary.uploader.upload(base64Img, {
             folder: 'Chat-Img',
             resource_type: 'image',
-            overwrite: true,
-            public_id: `${senderId}_chatImg_${receiverId}`
+            public_id: `${senderId}_chat_${uniqueSuffix}`,
+            fetch_format: 'auto',
+            quality: 'auto',
         });
 
         return res.secure_url;

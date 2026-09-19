@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { AllExceptionsFilter } from "./core/errors/errors.global.filter";
 import * as bodyParser from 'body-parser';
+import compression from 'compression';
 import { Logger } from "nestjs-pino";
 import { AppConfigService } from "./core/config/config.service";
 
@@ -46,6 +47,7 @@ async function bootstrap() {
         type: VersioningType.URI,
     });
 
+    app.use(compression());
     app.use(bodyParser.json({ limit: '10mb' }));
     app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
     app.use(cookieParser());

@@ -20,7 +20,9 @@ RUN pnpm build
 
 EXPOSE 5000
 
-# NODE_ENV decides the start mode:
-#   development (default in docker-compose) → nest start --watch
-#   production  (set on Render)             → node dist/main
-CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'production' ]; then pnpm start:prod; else pnpm start:dev; fi"]
+# Default to production and 350MB memory ceiling for Render 512MB container limit.
+# Local docker-compose overrides NODE_ENV to development.
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=350"
+
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'development' ]; then pnpm start:dev; else pnpm start:prod; fi"]
