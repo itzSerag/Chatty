@@ -14,5 +14,13 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 WORKDIR /app/Backend
+
+# Build for production
+RUN pnpm build
+
 EXPOSE 5000
-CMD ["pnpm", "start:dev"]
+
+# NODE_ENV decides the start mode:
+#   development (default in docker-compose) → nest start --watch
+#   production  (set on Render)             → node dist/main
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'production' ]; then pnpm start:prod; else pnpm start:dev; fi"]
