@@ -10,7 +10,8 @@ WORKDIR /app
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY Backend/package.json ./Backend/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
+
 COPY . .
 
 WORKDIR /app/Backend
@@ -20,9 +21,7 @@ RUN pnpm build
 
 EXPOSE 5000
 
-# Default to production and 350MB memory ceiling for Render 512MB container limit.
-# Local docker-compose overrides NODE_ENV to development.
-ENV NODE_ENV=production
+# Memory ceiling for Render 512MB container limit
 ENV NODE_OPTIONS="--max-old-space-size=350"
 
-CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'development' ]; then pnpm start:dev; else pnpm start:prod; fi"]
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = 'production' ]; then pnpm start:prod; else pnpm start:dev; fi"]
